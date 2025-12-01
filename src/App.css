@@ -1,0 +1,19 @@
+@import "tailwindcss";
+* {
+  font-family: "Inter", sans-serif;
+  font-optical-sizing: auto;
+}
+:root {
+  --default: #a4161b;
+  --defaultLight: #a4161b3f;
+}
+.chart-container {
+  width: 100%;
+  height: 50vh; /* Default height for larger screens */
+}
+
+@media (max-width: 768px) {
+  .chart-container {
+    height: 30vh; /* Smaller height for small screens */
+  }
+}
