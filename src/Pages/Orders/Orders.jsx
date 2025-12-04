@@ -982,7 +982,14 @@ const Orders = () => {
                               key={i2}
                               className="flex justify-between items-center text-xs text-gray-700 bg-white/60 px-3 py-2 rounded-lg"
                             >
-                              <span>{it.name}</span>
+                              <div className="flex flex-col">
+                                <span>{it.name}</span>
+                                {it.price && (
+                                  <span className="text-xs text-gray-600 font-medium">
+                                    ₦{it.price.toLocaleString()}
+                                  </span>
+                                )}
+                              </div>
                               <span className="font-semibold text-gray-900">
                                 ×{it.quantity}
                               </span>
