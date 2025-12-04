@@ -978,22 +978,22 @@ const Orders = () => {
                             Items
                           </p>
                           {pack.items.map((it, i2) => (
-                            <div
-                              key={i2}
-                              className="flex justify-between items-center text-xs text-gray-700 bg-white/60 px-3 py-2 rounded-lg"
-                            >
-                              <div className="flex flex-col">
-                                <span>{it.name}</span>
-                                {it.price && (
+                            (() => { console.log('Order Item:', it); return (
+                              <div
+                                key={i2}
+                                className="flex justify-between items-center text-xs text-gray-700 bg-white/60 px-3 py-2 rounded-lg"
+                              >
+                                <div className="flex flex-col">
+                                  <span>{it.name}</span>
                                   <span className="text-xs text-gray-600 font-medium">
-                                    ₦{it.price.toLocaleString()}
+                                    {it.price !== undefined ? `₦${Number(it.price).toLocaleString()}` : 'No price'}
                                   </span>
-                                )}
+                                </div>
+                                <span className="font-semibold text-gray-900">
+                                  ×{it.quantity}
+                                </span>
                               </div>
-                              <span className="font-semibold text-gray-900">
-                                ×{it.quantity}
-                              </span>
-                            </div>
+                            ); })()
                           ))}
                           {/* Show selected pack type and price */}
                           <div className="mt-2 text-xs text-gray-700">
