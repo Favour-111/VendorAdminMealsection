@@ -457,12 +457,12 @@ const Orders = () => {
                                 )}
                               </button>
 
-                              <button
+                              {/* <button
                                 onClick={() => setMessagemodal(item._id)}
                                 className="px-4 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-sky-600 text-white text-xs font-medium hover:from-cyan-600 hover:to-sky-700 transition-all shadow-sm hover:shadow-md"
                               >
                                 Unavailable
-                              </button>
+                              </button> */}
                             </div>
                           </td>
                         </tr>
