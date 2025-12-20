@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
+import { exportOrdersToExcel } from "../../utils/exportOrders";
 import SideBar from "../../components/SideBar/SideBar";
 import { IoCheckmark, IoClose, IoMenu } from "react-icons/io5";
 import { SlBell } from "react-icons/sl";
@@ -15,7 +16,9 @@ const Orders = () => {
   const [vendors, setVendors] = useState([]);
   const [Messagemodal, setMessagemodal] = useState(null);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [loading, setLoading] = useState(false);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [vendorsLoading, setVendorsLoading] = useState(false);
+  const loading = ordersLoading || vendorsLoading;
   const [allOrder, setAllOrders] = useState([]);
   const [accepted, setAccepted] = useState(null);
   const [messageText, setMessageText] = useState("");
@@ -30,14 +33,11 @@ const Orders = () => {
   const storeId = localStorage.getItem("StoreId");
   const fetchOrders = async () => {
     try {
-      setLoading(true);
+      setOrdersLoading(true);
       const response = await axios.get(
         `${import.meta.env.VITE_REACT_APP_API}/api/users/orders`
       );
-
       if (response && response.data.orders) {
-        console.log(response.data.orders);
-
         setAllOrders(response.data.orders);
       } else {
         toast.error("Error fetching orders");
@@ -46,19 +46,17 @@ const Orders = () => {
       console.error("Error fetching orders:", error);
       toast.error("Something went wrong fetching orders");
     } finally {
-      setLoading(false);
+      setOrdersLoading(false);
     }
   };
   const fetchVendors = async () => {
     try {
-      setLoading(true);
+      setVendorsLoading(true);
       const response = await axios.get(
         `${import.meta.env.VITE_REACT_APP_API}/api/vendors/all`
       );
-
       if (response && response.data) {
         setVendors(response.data);
-        console.log(response);
       } else {
         toast.error("Error fetching Vendors");
       }
@@ -66,7 +64,7 @@ const Orders = () => {
       console.error("Error fetching Vendors:", error);
       toast.error("Something went wrong fetching Vendors");
     } finally {
-      setLoading(false);
+      setVendorsLoading(false);
     }
   };
   useEffect(() => {
@@ -208,7 +206,7 @@ const Orders = () => {
 
       <div className="flex-1 md:ml-[240px] w-full overflow-y-auto">
         <div className="md:p-6 px-5 mt-3 pb-10">
-          {/* Header */}
+          {/* Header + Export */}
           <div className="flex items-center justify-between mb-6">
             <div className="flex gap-4 items-center">
               <button
@@ -226,6 +224,14 @@ const Orders = () => {
                 </p>
               </div>
             </div>
+            <button
+              className="ml-4 px-5 py-2 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white font-semibold shadow hover:from-green-600 hover:to-emerald-700 transition-all"
+              onClick={() => exportOrdersToExcel(filteredOrders)}
+              disabled={loading || filteredOrders.length === 0}
+              title="Export orders as Excel"
+            >
+              Export Orders
+            </button>
           </div>
 
           {/* Summary cards */}
@@ -977,24 +983,31 @@ const Orders = () => {
                           <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">
                             Items
                           </p>
-                          {pack.items.map((it, i2) => (
-                            (() => { console.log('Order Item:', it); return (
-                              <div
-                                key={i2}
-                                className="flex justify-between items-center text-xs text-gray-700 bg-white/60 px-3 py-2 rounded-lg"
-                              >
-                                <div className="flex flex-col">
-                                  <span>{it.name}</span>
-                                  <span className="text-xs text-gray-600 font-medium">
-                                    {it.price !== undefined ? `₦${Number(it.price).toLocaleString()}` : 'No price'}
+                          {pack.items.map((it, i2) =>
+                            (() => {
+                              console.log("Order Item:", it);
+                              return (
+                                <div
+                                  key={i2}
+                                  className="flex justify-between items-center text-xs text-gray-700 bg-white/60 px-3 py-2 rounded-lg"
+                                >
+                                  <div className="flex flex-col">
+                                    <span>{it.name}</span>
+                                    <span className="text-xs text-gray-600 font-medium">
+                                      {it.price !== undefined
+                                        ? `₦${Number(
+                                            it.price
+                                          ).toLocaleString()}`
+                                        : "No price"}
+                                    </span>
+                                  </div>
+                                  <span className="font-semibold text-gray-900">
+                                    ×{it.quantity}
                                   </span>
                                 </div>
-                                <span className="font-semibold text-gray-900">
-                                  ×{it.quantity}
-                                </span>
-                              </div>
-                            ); })()
-                          ))}
+                              );
+                            })()
+                          )}
                           {/* Show selected pack type and price */}
                           <div className="mt-2 text-xs text-gray-700">
                             <span className="font-semibold">Pack Type:</span>{" "}

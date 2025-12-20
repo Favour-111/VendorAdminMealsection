@@ -372,7 +372,14 @@ const Home = () => {
                         key={i2}
                         className="flex justify-between items-center text-xs text-gray-700 bg-white/60 px-3 py-2 rounded-lg"
                       >
-                        <span>{it.name}</span>
+                        <div className="flex flex-col">
+                          <span>{it.name}</span>
+                          <span className="text-xs text-gray-600 font-medium">
+                            {it.price !== undefined
+                              ? `₦${Number(it.price).toLocaleString()}`
+                              : "No price"}
+                          </span>
+                        </div>
                         <span className="font-semibold text-gray-900">
                           ×{it.quantity}
                         </span>
@@ -382,6 +389,62 @@ const Home = () => {
                 </div>
               ))}
             </div>
+
+            {/* Accept/Decline for Pending Orders */}
+            {selectedItem.currentStatus === "Pending" && (
+              <div className="flex gap-3 mt-6">
+                <button
+                  onClick={async () => {
+                    // Accept order for this vendor
+                    const res = await fetch(
+                      `${import.meta.env.VITE_REACT_APP_API}/api/users/orders/${
+                        selectedItem._id
+                      }/vendor/${StoreId}/accept`,
+                      {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ accepted: true }),
+                      }
+                    );
+                    if (res.ok) {
+                      toast.success("Order accepted");
+                      setSelectedItem(null);
+                      fetchOrders();
+                    } else {
+                      toast.error("Failed to accept order");
+                    }
+                  }}
+                  className="flex-1 px-4 py-3 rounded-xl font-semibold bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-700 hover:to-green-700 transition-all shadow-lg"
+                >
+                  Accept
+                </button>
+                <button
+                  onClick={async () => {
+                    // Decline order for this vendor
+                    const res = await fetch(
+                      `${import.meta.env.VITE_REACT_APP_API}/api/users/orders/${
+                        selectedItem._id
+                      }/vendor/${StoreId}/accept`,
+                      {
+                        method: "PUT",
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify({ accepted: false }),
+                      }
+                    );
+                    if (res.ok) {
+                      toast.success("Order declined");
+                      setSelectedItem(null);
+                      fetchOrders();
+                    } else {
+                      toast.error("Failed to decline order");
+                    }
+                  }}
+                  className="flex-1 px-4 py-3 rounded-xl font-semibold bg-gradient-to-r from-rose-500 to-red-600 text-white hover:from-rose-700 hover:to-red-700 transition-all shadow-lg"
+                >
+                  Decline
+                </button>
+              </div>
+            )}
 
             <button
               onClick={() => setSelectedItem(null)}

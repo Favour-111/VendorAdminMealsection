@@ -17,7 +17,56 @@ const WithDraw = () => {
   const [amount, setAmount] = useState("");
   const [vendor, setVendor] = useState([]);
   const [vendorWithDraws, SetWithDrawal] = useState([]);
+  const [showBankModal, setShowBankModal] = useState(false);
+  const [bankAccountNumber, setBankAccountNumber] = useState("");
+  const [bankAccountName, setBankAccountName] = useState("");
+  const [bankName, setBankName] = useState("");
+  const [bankLoading, setBankLoading] = useState(false);
   const StoreId = localStorage.getItem("StoreId");
+
+  // Fetch vendor bank info on mount
+  useEffect(() => {
+    const fetchBankInfo = async () => {
+      try {
+        if (!StoreId) return;
+        const res = await axios.get(
+          `${
+            import.meta.env.VITE_REACT_APP_API
+          }/api/vendors/${StoreId}/bank-info`
+        );
+        if (res.data) {
+          setBankAccountNumber(res.data.bankAccountNumber || "");
+          setBankAccountName(res.data.bankAccountName || "");
+          setBankName(res.data.bankName || "");
+        }
+      } catch (e) {
+        // No bank info yet, ignore
+      }
+    };
+    fetchBankInfo();
+  }, [StoreId]);
+
+  const handleSaveBankInfo = async () => {
+    try {
+      setBankLoading(true);
+      await axios.post(
+        `${
+          import.meta.env.VITE_REACT_APP_API
+        }/api/vendors/${StoreId}/bank-info`,
+        {
+          bankAccountNumber,
+          bankAccountName,
+          bankName,
+        }
+      );
+      toast.success("Bank info saved");
+      setShowBankModal(false);
+    } catch (e) {
+      toast.error("Failed to save bank info");
+    } finally {
+      setBankLoading(false);
+    }
+  };
 
   const FetchStore = async () => {
     try {
@@ -210,19 +259,124 @@ const WithDraw = () => {
                     Request a payout to your account
                   </p>
                 </div>
-                <button
-                  onClick={() => setModal(true)}
-                  className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 text-white text-sm font-semibold hover:from-purple-700 hover:to-violet-700 transition-all shadow-sm hover:shadow-md"
-                >
-                  Request Withdraw
-                </button>
+                <div className="flex items-center ">
+                  <button
+                    onClick={() => setShowBankModal(true)}
+                    className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-gradient-to-r from-blue-500 to-blue-700 text-white text-sm font-semibold hover:from-blue-600 hover:to-blue-800 transition-all shadow-sm hover:shadow-md mr-2"
+                  >
+                    <CiMoneyCheck1 className="mr-2" size={18} />
+                    {bankAccountNumber && bankAccountName && bankName
+                      ? "Edit Bank Info"
+                      : "Add Bank Info"}
+                  </button>
+                  <button
+                    onClick={() => setModal(true)}
+                    className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 text-white text-sm font-semibold hover:from-purple-700 hover:to-violet-700 transition-all shadow-sm hover:shadow-md"
+                    disabled={
+                      !bankAccountNumber || !bankAccountName || !bankName
+                    }
+                    title={
+                      !bankAccountNumber || !bankAccountName || !bankName
+                        ? "Add bank info first"
+                        : ""
+                    }
+                  >
+                    <GiMoneyStack className="mr-2" size={18} />
+                    Request Withdraw
+                  </button>
+                </div>
               </div>
             </div>
           </div>
+          {/* Bank Info Modal */}
+          {showBankModal && (
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+              {/* Backdrop */}
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={() => setShowBankModal(false)}
+              />
+              {/* Modal */}
+              <div className="relative z-10 bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-slideUp">
+                <button
+                  onClick={() => setShowBankModal(false)}
+                  className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-xl transition-colors group"
+                >
+                  <MdClose
+                    className="text-gray-500 group-hover:text-gray-700"
+                    size={20}
+                  />
+                </button>
+                <h2 className="text-xl font-bold text-gray-900 mb-1">
+                  Bank Account Info
+                </h2>
+                <p className="text-sm text-gray-500 mb-4">
+                  Enter your bank account details for withdrawals
+                </p>
+                <div className="mb-3">
+                  <label className="text-xs font-medium text-gray-600">
+                    Account Number
+                  </label>
+                  <input
+                    type="text"
+                    value={bankAccountNumber}
+                    onChange={(e) => setBankAccountNumber(e.target.value)}
+                    placeholder="Account Number"
+                    className="mt-1 w-full px-3 py-3 rounded-xl border-2 border-gray-200 placeholder:text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="text-xs font-medium text-gray-600">
+                    Account Name
+                  </label>
+                  <input
+                    type="text"
+                    value={bankAccountName}
+                    onChange={(e) => setBankAccountName(e.target.value)}
+                    placeholder="Account Name"
+                    className="mt-1 w-full px-3 py-3 rounded-xl border-2 border-gray-200 placeholder:text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="text-xs font-medium text-gray-600">
+                    Bank Name
+                  </label>
+                  <input
+                    type="text"
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    placeholder="Bank Name"
+                    className="mt-1 w-full px-3 py-3 rounded-xl border-2 border-gray-200 placeholder:text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all"
+                  />
+                </div>
+                <div className="flex gap-3 mt-5">
+                  <button
+                    onClick={() => setShowBankModal(false)}
+                    className="flex-1 px-4 py-3 rounded-xl border-2 border-gray-200 text-gray-700 font-semibold hover:bg-gray-50 transition-all"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    disabled={bankLoading}
+                    onClick={handleSaveBankInfo}
+                    className="flex-1 px-4 py-3 rounded-xl font-semibold bg-gradient-to-r from-blue-600 to-blue-700 text-white hover:from-blue-700 hover:to-blue-800 transition-all shadow-lg disabled:opacity-70"
+                  >
+                    {bankLoading ? "Saving..." : "Save"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {modal && (
-            <div className="fixed inset-0 z-[10000] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 animate-fadeIn">
-              <div className="relative bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-slideUp">
+            <div className="fixed inset-0 z-[10000] flex items-center justify-center">
+              {/* Backdrop */}
+              <div
+                className="absolute inset-0 bg-black/60 backdrop-blur-sm"
+                onClick={() => setModal(false)}
+              />
+              {/* Modal */}
+              <div className="relative z-10 bg-white rounded-2xl w-full max-w-md p-6 shadow-2xl animate-slideUp">
                 <button
                   onClick={() => setModal(false)}
                   className="absolute top-4 right-4 p-2 hover:bg-gray-100 rounded-xl transition-colors group"
@@ -232,7 +386,6 @@ const WithDraw = () => {
                     size={20}
                   />
                 </button>
-
                 <h2 className="text-xl font-bold text-gray-900 mb-1">
                   New Withdrawal
                 </h2>
@@ -254,6 +407,25 @@ const WithDraw = () => {
                     Available: ₦
                     {Number(filterVendor?.availableBal || 0).toLocaleString()}
                   </p>
+                </div>
+                {/* Show bank info for confirmation */}
+                <div className="mt-4 p-3 rounded-xl bg-blue-50 border border-blue-200">
+                  <div className="text-xs text-gray-600 mb-1 font-semibold">
+                    Withdrawal will be sent to:
+                  </div>
+                  <div className="text-sm text-gray-800">
+                    {bankAccountName} ({bankAccountNumber})
+                  </div>
+                  <div className="text-xs text-gray-500">{bankName}</div>
+                  <button
+                    className="mt-2 text-xs text-blue-600 underline"
+                    onClick={() => {
+                      setShowBankModal(true);
+                      setModal(false);
+                    }}
+                  >
+                    Edit Bank Info
+                  </button>
                 </div>
                 <div className="flex gap-3 mt-5">
                   <button

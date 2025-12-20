@@ -81,6 +81,13 @@ const Login = () => {
         }
       );
 
+      // Check approval status
+      if (!response?.data?.vendor?.valid) {
+        setMessage("Please wait, we are validating your account.");
+      } else if (response?.data?.vendor?.valid === false) {
+        setMessage("Your account was not approved. Contact support.");
+      }
+
       // Save token and vendor ID to localStorage
       if (response) {
         localStorage.setItem("StoreId", response.data.vendor.id);

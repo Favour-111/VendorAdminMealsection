@@ -21,7 +21,7 @@ const ResetPassword = () => {
         { newPassword }
       );
       setMessage(res.data.message || "Password reset successful.");
-      setTimeout(() => navigate("/login"), 2000);
+      setTimeout(() => navigate("/"), 2000);
     } catch (err) {
       setMessage(err.response?.data?.message || "Error resetting password.");
     } finally {
@@ -64,7 +64,14 @@ const ResetPassword = () => {
           {loading ? "Resetting..." : "Reset Password"}
         </button>
         {message && (
-          <p className="mt-4 text-center text-sm text-[var(--default)] font-medium">
+          <p
+            className={`mt-4 text-center text-sm font-medium ${
+              message.toLowerCase().includes("success") ||
+              message.toLowerCase().includes("reset")
+                ? "text-green-600"
+                : "text-red-600"
+            }`}
+          >
             {message}
           </p>
         )}

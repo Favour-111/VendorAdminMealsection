@@ -58,7 +58,14 @@ const ForgotPassword = () => {
           {loading ? "Sending..." : "Send Reset Link"}
         </button>
         {message && (
-          <p className="mt-4 text-center text-sm text-[var(--default)] font-medium">
+          <p
+            className={`mt-4 text-center text-sm font-medium ${
+              message.toLowerCase().includes("sent") ||
+              message.toLowerCase().includes("check your email")
+                ? "text-green-600"
+                : "text-red-600"
+            }`}
+          >
             {message}
           </p>
         )}
