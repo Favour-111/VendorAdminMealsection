@@ -107,10 +107,9 @@ const WithDraw = () => {
     FetchStore();
   }, []);
   const filterVendor = vendor?.find((item) => item._id === StoreId);
-  console.log(vendorWithDraws);
 
   const myWithdrawals = useMemo(
-    () => vendorWithDraws.filter((w) => w.vendorId._id === StoreId),
+    () => vendorWithDraws.filter((w) => w.vendorId?._id === StoreId),
     [vendorWithDraws, StoreId]
   );
   const pending = useMemo(
@@ -270,16 +269,16 @@ const WithDraw = () => {
                       : "Add Bank Info"}
                   </button>
                   <button
-                    onClick={() => setModal(true)}
+                    onClick={() => {
+                      if (!bankAccountNumber || !bankAccountName || !bankName) {
+                        toast.error(
+                          "Please fill in your bank details before requesting a withdrawal."
+                        );
+                        return;
+                      }
+                      setModal(true);
+                    }}
                     className="inline-flex items-center justify-center px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-violet-600 text-white text-sm font-semibold hover:from-purple-700 hover:to-violet-700 transition-all shadow-sm hover:shadow-md"
-                    disabled={
-                      !bankAccountNumber || !bankAccountName || !bankName
-                    }
-                    title={
-                      !bankAccountNumber || !bankAccountName || !bankName
-                        ? "Add bank info first"
-                        : ""
-                    }
                   >
                     <GiMoneyStack className="mr-2" size={18} />
                     Request Withdraw
