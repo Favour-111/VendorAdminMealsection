@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import SideBar from "../../components/SideBar/SideBar";
 import {
   IoBagCheck,
@@ -14,6 +14,7 @@ import { HiOutlineBuildingStorefront } from "react-icons/hi2";
 import { BsWallet } from "react-icons/bs";
 import toast from "react-hot-toast";
 import axios from "axios";
+import { useSocket } from "../../context/SocketContext.jsx";
 import "./Home.css";
 const Home = () => {
   const [openNav, setOpenNav] = useState(false);
@@ -22,11 +23,13 @@ const Home = () => {
   const [vendor, setVendor] = useState([]);
   const [selectedItem, setSelectedItem] = useState(null);
   const [updatingActive, setUpdatingActive] = useState(false);
+  const { socket } = useSocket?.() || {};
+  const pendingRequestsRef = useRef(new Set()); // ✅ Track pending requests to prevent duplicates
   const StoreId = localStorage.getItem("StoreId");
 
   const FetchStore = async () => {
     const res = await axios.get(
-      `${import.meta.env.VITE_REACT_APP_API}/api/vendors/all`
+      `${import.meta.env.VITE_REACT_APP_API}/api/vendors/all`,
     );
     if (res) {
       setVendor(res.data);
@@ -35,6 +38,33 @@ const Home = () => {
     }
   };
   const filterVendor = vendor?.find((item) => item._id === StoreId);
+
+  // ✅ Join socket room for real-time updates
+  useEffect(() => {
+    if (socket && StoreId) {
+      socket.emit("join", {
+        role: "vendor",
+        storeId: StoreId,
+      });
+      console.log(`✅ Vendor ${StoreId} joined socket room`);
+    }
+  }, [socket, StoreId]);
+
+  // ✅ Listen for real-time order updates
+  useEffect(() => {
+    if (!socket) return;
+    const handler = () => fetchOrders();
+    socket.on("orders:new", handler);
+    socket.on("orders:status", handler);
+    socket.on("vendors:packsUpdated", handler);
+    socket.on("orders:message", handler);
+    return () => {
+      socket.off("orders:new", handler);
+      socket.off("orders:status", handler);
+      socket.off("vendors:packsUpdated", handler);
+      socket.off("orders:message", handler);
+    };
+  }, [socket]);
 
   const toggleActive = async () => {
     if (!filterVendor?._id) return;
@@ -50,11 +80,11 @@ const Home = () => {
         prev.map((v) =>
           v._id === filterVendor._id
             ? { ...v, Active: goingActive ? "true" : "false" }
-            : v
-        )
+            : v,
+        ),
       );
       toast.success(
-        goingActive ? "Store is now online" : "Store set to offline"
+        goingActive ? "Store is now online" : "Store set to offline",
       );
     } catch (e) {
       console.error(e);
@@ -67,7 +97,7 @@ const Home = () => {
     try {
       setLoading(true);
       const response = await axios.get(
-        `${import.meta.env.VITE_REACT_APP_API}/api/users/orders`
+        `${import.meta.env.VITE_REACT_APP_API}/api/users/orders`,
       );
 
       if (response && response.data.orders) {
@@ -111,19 +141,19 @@ const Home = () => {
   // Derived counts
   const pendingCount = useMemo(
     () => filteredOrders.filter((o) => o.currentStatus === "Pending").length,
-    [filteredOrders]
+    [filteredOrders],
   );
   const ongoingCount = useMemo(
     () => filteredOrders.filter((o) => o.currentStatus === "Processing").length,
-    [filteredOrders]
+    [filteredOrders],
   );
   const completedCount = useMemo(
     () => filteredOrders.filter((o) => o.currentStatus === "Delivered").length,
-    [filteredOrders]
+    [filteredOrders],
   );
   const recentOrders = useMemo(
     () => filteredOrders.slice().reverse().slice(0, 6),
-    [filteredOrders]
+    [filteredOrders],
   );
   return (
     <div className="flex w-full min-h-screen bg-gradient-to-br from-slate-50 via-white to-purple-50/30 justify-between">
@@ -296,8 +326,8 @@ const Home = () => {
                           o.currentStatus === "Delivered"
                             ? "bg-emerald-50 text-emerald-600"
                             : o.currentStatus === "Processing"
-                            ? "bg-amber-50 text-amber-600"
-                            : "bg-red-50 text-red-600"
+                              ? "bg-amber-50 text-amber-600"
+                              : "bg-red-50 text-red-600"
                         }`}
                       >
                         {o.currentStatus}
@@ -395,23 +425,53 @@ const Home = () => {
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={async () => {
-                    // Accept order for this vendor
-                    const res = await fetch(
-                      `${import.meta.env.VITE_REACT_APP_API}/api/users/orders/${
-                        selectedItem._id
-                      }/vendor/${StoreId}/accept`,
-                      {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ accepted: true }),
+                    // ✅ Prevent duplicate requests
+                    const requestKey = `${selectedItem._id}-accept`;
+                    if (pendingRequestsRef.current.has(requestKey)) {
+                      toast.error("Request already in progress");
+                      return;
+                    }
+                    pendingRequestsRef.current.add(requestKey);
+
+                    try {
+                      // Accept order for this vendor
+                      const res = await fetch(
+                        `${import.meta.env.VITE_REACT_APP_API}/api/users/orders/${
+                          selectedItem._id
+                        }/vendor/${StoreId}/accept`,
+                        {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ accepted: true }),
+                        },
+                      );
+                      if (res.ok) {
+                        const data = await res.json();
+                        // Check if it was a duplicate request
+                        if (data.isDuplicate) {
+                          toast.info("Order already accepted");
+                        } else {
+                          toast.success("Order accepted");
+                        }
+                        setSelectedItem(null);
+                        fetchOrders();
+                      } else {
+                        const error = await res.json();
+                        if (res.status === 409) {
+                          toast.error(
+                            "Order was already processed by another request",
+                          );
+                        } else {
+                          toast.error(
+                            error.message || "Failed to accept order",
+                          );
+                        }
                       }
-                    );
-                    if (res.ok) {
-                      toast.success("Order accepted");
-                      setSelectedItem(null);
-                      fetchOrders();
-                    } else {
-                      toast.error("Failed to accept order");
+                    } catch (err) {
+                      console.error("Error accepting order:", err);
+                      toast.error("Network error - please try again");
+                    } finally {
+                      pendingRequestsRef.current.delete(requestKey);
                     }
                   }}
                   className="flex-1 px-4 py-3 rounded-xl font-semibold bg-gradient-to-r from-emerald-500 to-green-600 text-white hover:from-emerald-700 hover:to-green-700 transition-all shadow-lg"
@@ -420,23 +480,53 @@ const Home = () => {
                 </button>
                 <button
                   onClick={async () => {
-                    // Decline order for this vendor
-                    const res = await fetch(
-                      `${import.meta.env.VITE_REACT_APP_API}/api/users/orders/${
-                        selectedItem._id
-                      }/vendor/${StoreId}/accept`,
-                      {
-                        method: "PUT",
-                        headers: { "Content-Type": "application/json" },
-                        body: JSON.stringify({ accepted: false }),
+                    // ✅ Prevent duplicate requests
+                    const requestKey = `${selectedItem._id}-decline`;
+                    if (pendingRequestsRef.current.has(requestKey)) {
+                      toast.error("Request already in progress");
+                      return;
+                    }
+                    pendingRequestsRef.current.add(requestKey);
+
+                    try {
+                      // Decline order for this vendor
+                      const res = await fetch(
+                        `${import.meta.env.VITE_REACT_APP_API}/api/users/orders/${
+                          selectedItem._id
+                        }/vendor/${StoreId}/accept`,
+                        {
+                          method: "PUT",
+                          headers: { "Content-Type": "application/json" },
+                          body: JSON.stringify({ accepted: false }),
+                        },
+                      );
+                      if (res.ok) {
+                        const data = await res.json();
+                        // Check if it was a duplicate request
+                        if (data.isDuplicate) {
+                          toast.info("Order already declined");
+                        } else {
+                          toast.success("Order declined");
+                        }
+                        setSelectedItem(null);
+                        fetchOrders();
+                      } else {
+                        const error = await res.json();
+                        if (res.status === 409) {
+                          toast.error(
+                            "Order was already processed by another request",
+                          );
+                        } else {
+                          toast.error(
+                            error.message || "Failed to decline order",
+                          );
+                        }
                       }
-                    );
-                    if (res.ok) {
-                      toast.success("Order declined");
-                      setSelectedItem(null);
-                      fetchOrders();
-                    } else {
-                      toast.error("Failed to decline order");
+                    } catch (err) {
+                      console.error("Error declining order:", err);
+                      toast.error("Network error - please try again");
+                    } finally {
+                      pendingRequestsRef.current.delete(requestKey);
                     }
                   }}
                   className="flex-1 px-4 py-3 rounded-xl font-semibold bg-gradient-to-r from-rose-500 to-red-600 text-white hover:from-rose-700 hover:to-red-700 transition-all shadow-lg"

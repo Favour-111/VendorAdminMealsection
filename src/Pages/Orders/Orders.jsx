@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import { exportOrdersToExcel } from "../../utils/exportOrders";
 import SideBar from "../../components/SideBar/SideBar";
 import { IoCheckmark, IoClose, IoMenu } from "react-icons/io5";
@@ -29,13 +29,14 @@ const Orders = () => {
     type: "accepted",
     orderId: "",
   });
+  const pendingRequestsRef = useRef(new Set()); // ✅ Track pending requests to prevent duplicates
 
   const storeId = localStorage.getItem("StoreId");
   const fetchOrders = async () => {
     try {
       setOrdersLoading(true);
       const response = await axios.get(
-        `${import.meta.env.VITE_REACT_APP_API}/api/users/orders`
+        `${import.meta.env.VITE_REACT_APP_API}/api/users/orders`,
       );
       if (response && response.data.orders) {
         setAllOrders(response.data.orders);
@@ -53,7 +54,7 @@ const Orders = () => {
     try {
       setVendorsLoading(true);
       const response = await axios.get(
-        `${import.meta.env.VITE_REACT_APP_API}/api/vendors/all`
+        `${import.meta.env.VITE_REACT_APP_API}/api/vendors/all`,
       );
       if (response && response.data) {
         setVendors(response.data);
@@ -71,6 +72,17 @@ const Orders = () => {
     fetchOrders();
     fetchVendors();
   }, []);
+
+  // ✅ Join socket room for real-time updates
+  useEffect(() => {
+    if (socket && storeId) {
+      socket.emit("join", {
+        role: "vendor",
+        storeId: storeId,
+      });
+      console.log(`✅ Vendor ${storeId} joined socket room`);
+    }
+  }, [socket, storeId]);
 
   // Live refresh on socket events
   useEffect(() => {
@@ -113,33 +125,33 @@ const Orders = () => {
   const totalOrders = filteredOrders.length;
   const completedCount = useMemo(
     () => filteredOrders.filter((o) => o.currentStatus === "Delivered").length,
-    [filteredOrders]
+    [filteredOrders],
   );
   const awaitingCount = useMemo(
     () =>
       filteredOrders.filter(
         (item) =>
           item.currentStatus === "Pending" &&
-          item.packs.some((pack) => pack.accepted === true)
+          item.packs.some((pack) => pack.accepted === true),
       ).length,
 
-    [filteredOrders]
+    [filteredOrders],
   );
   const ongoingCount = useMemo(
     () =>
       filteredOrders.filter(
         (item) =>
           item.currentStatus === "Pending" &&
-          item.packs.some((pack) => pack.accepted === true)
+          item.packs.some((pack) => pack.accepted === true),
       ).length,
-    [filteredOrders]
+    [filteredOrders],
   );
   const declinedCount = useMemo(
     () =>
       filteredOrders.filter((item) =>
-        item.packs.some((pack) => pack.accepted === false)
+        item.packs.some((pack) => pack.accepted === false),
       ).length,
-    [filteredOrders]
+    [filteredOrders],
   );
   const handleDecision = async (decision, orderId, vendorId) => {
     try {
@@ -148,7 +160,7 @@ const Orders = () => {
         `${
           import.meta.env.VITE_REACT_APP_API
         }/api/users/orders/${orderId}/vendor/${vendorId}/accept`,
-        { accepted: decision }
+        { accepted: decision },
       );
       console.log("✅ Packs updated:", res.data);
       setSuccessInfo({
@@ -172,7 +184,7 @@ const Orders = () => {
         `${
           import.meta.env.VITE_REACT_APP_API
         }/api/users/orders/${orderId}/message`,
-        { message: messageText }
+        { message: messageText },
       );
       toast.success("Message sent successfully!");
       setMessagemodal(null);
@@ -327,7 +339,7 @@ const Orders = () => {
                   </tbody>
                 </table>
               ) : filteredOrders.filter((item) =>
-                  item.packs.some((pack) => pack.accepted === null)
+                  item.packs.some((pack) => pack.accepted === null),
                 ).length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-50 rounded-full mb-4">
@@ -363,7 +375,7 @@ const Orders = () => {
                       .filter(
                         (item) =>
                           item.currentStatus === "Pending" &&
-                          item.packs.some((pack) => pack.accepted === null)
+                          item.packs.some((pack) => pack.accepted === null),
                       )
                       .reverse()
                       .slice(0, 6)
@@ -528,7 +540,7 @@ const Orders = () => {
               ) : filteredOrders.filter(
                   (item) =>
                     item.currentStatus === "Pending" &&
-                    item.packs.some((pack) => pack.accepted === true)
+                    item.packs.some((pack) => pack.accepted === true),
                 ).length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-amber-50 rounded-full mb-4">
@@ -567,7 +579,7 @@ const Orders = () => {
                       .filter(
                         (item) =>
                           item.currentStatus === "Pending" &&
-                          item.packs.some((pack) => pack.accepted === true)
+                          item.packs.some((pack) => pack.accepted === true),
                       )
                       .reverse()
                       .map((item) => (
@@ -655,7 +667,7 @@ const Orders = () => {
                   </tbody>
                 </table>
               ) : filteredOrders.filter(
-                  (item) => item.currentStatus === "Delivered"
+                  (item) => item.currentStatus === "Delivered",
                 ).length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-emerald-50 rounded-full mb-4">
@@ -776,7 +788,7 @@ const Orders = () => {
                   </tbody>
                 </table>
               ) : filteredOrders.filter((item) =>
-                  item.packs.some((pack) => pack.accepted === false)
+                  item.packs.some((pack) => pack.accepted === false),
                 ).length === 0 ? (
                 <div className="text-center py-16 bg-white rounded-xl border border-gray-100">
                   <div className="inline-flex items-center justify-center w-16 h-16 bg-rose-50 rounded-full mb-4">
@@ -810,7 +822,7 @@ const Orders = () => {
                   <tbody className="bg-white divide-y divide-gray-100">
                     {filteredOrders
                       .filter((item) =>
-                        item.packs.some((pack) => pack.accepted === false)
+                        item.packs.some((pack) => pack.accepted === false),
                       )
                       .reverse()
                       .map((item) => (
@@ -996,7 +1008,7 @@ const Orders = () => {
                                     <span className="text-xs text-gray-600 font-medium">
                                       {it.price !== undefined
                                         ? `₦${Number(
-                                            it.price
+                                            it.price,
                                           ).toLocaleString()}`
                                         : "No price"}
                                     </span>
@@ -1006,7 +1018,7 @@ const Orders = () => {
                                   </span>
                                 </div>
                               );
-                            })()
+                            })(),
                           )}
                           {/* Show selected pack type and price */}
                           <div className="mt-2 text-xs text-gray-700">
